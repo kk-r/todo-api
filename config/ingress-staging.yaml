@@ -8,7 +8,7 @@ metadata:
   namespace: staging
 spec:
   rules:
-  - host: ${{ secrets.STAGING_API_URL }}
+  - host: "todo-dev.atomtechlabs.com"
     http:
       paths:
       - path: "/"

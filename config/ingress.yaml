@@ -8,7 +8,7 @@ metadata:
   namespace: default
 spec:
   rules:
-  - host: ${{ secrets.API_URL }}
+  - host: "todo.atomtechlabs.com"
     http:
       paths:
       - path: "/"
