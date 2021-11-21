@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    ingress.bluemix.net/rewrite-path: "serviceName=app-service rewrite=/"
+    kubernetes.io/ingress.class: nginx 
+  name: todo-app-ingress
+  namespace: staging
+spec:
+  rules:
+  - host: "todo-dev.atomtechlabs.com"
+    http:
+      paths:
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-staging
+            port:
+              number: 80
+      - path: "/api/"
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-staging
+            port:
+              number: 8080 

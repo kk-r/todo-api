@@ -1,0 +1,94 @@
+name: Go
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.17
+
+    - name: Build
+      run: go build -v ./...
+        
+    - name: Test
+      run: go test -v ./...
+      env:
+        CI: true
+  docker:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@main
+
+      # Install doctl.
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      
+      # Build a Docker image of your application in your registry and tag the image with the $GITHUB_SHA.
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Build Tag Name
+        id: vars
+        shell: bash
+        run: |
+          echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+      - name: Login to DockerHub
+        uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ secrets.REGISTRY_NAME }}/go-todo-api:${{ steps.vars.outputs.branch }}.${{ steps.vars.outputs.sha_short }}
+      # Deploy to DigitalOCcean Kubernetes.
+      - name: Update prod deployment file
+        run: TAG=${{ steps.vars.outputs.branch }}.${{ steps.vars.outputs.sha_short }} && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/go-todo-api:'${TAG}'|' $GITHUB_WORKSPACE/config/deployment.yaml
+
+      - name: Update staging deployment file
+        run: TAG=${{ steps.vars.outputs.branch }}.${{ steps.vars.outputs.sha_short }} && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/go-todo-api:'${TAG}'|' $GITHUB_WORKSPACE/config/deployment-staging.yaml
+
+      - name: Save DigitalOcean kubeconfig with short-lived credentials
+        run: doctl kubernetes cluster kubeconfig save --expiry-seconds 600 ${{ secrets.CLUSTER_NAME }}
+      
+      # If you haven't already integrated with your registry and only want workloads in a particular namespace to be able to pull 
+      # from your registry, uncomment the next two commands.
+      #- name: Upload credentials of your registry to your DigitalOcean Kubernetes cluster
+      #  run: doctl registry kubernetes-manifest | kubectl apply -f -
+        
+      #- name: Reference the secret you just uploaded as an imagePullSecrets
+      #  run: "kubectl patch serviceaccount default -p '{\"imagePullSecrets\": [{\"name\": \"registry-<your-registry-name>`\"}]}'"
+
+      - name: Deploy to DigitalOcean Kubernetes (Staging)
+        run: kubectl apply -f $GITHUB_WORKSPACE/config/deployment-staging.yaml
+
+      - name: Deploy Ingress (Staging)
+        run: kubectl apply -f $GITHUB_WORKSPACE/config/ingress-staging.yaml
+
+      - name: Deploy to DigitalOcean Kubernetes
+        run: kubectl apply -f $GITHUB_WORKSPACE/config/deployment.yaml
+
+      - name: Deploy Ingress
+        run: kubectl apply -f $GITHUB_WORKSPACE/config/ingress.yaml
+
+      - name: Verify deployment
+        run: kubectl rollout status deployment/backend

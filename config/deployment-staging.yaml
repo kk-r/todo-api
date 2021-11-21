@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-staging
+  namespace: staging
+spec:
+  selector:
+    matchLabels:
+      app: todo-app-staging
+      tier: backend-staging
+      track: stable
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: todo-app-staging
+        tier: backend-staging
+        track: stable
+    spec:
+      containers:
+        - name: backend-staging
+          image: "<IMAGE>"
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+            limits:
+              cpu: 100m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-staging
+  namespace: staging
+spec:
+  selector:
+    app: todo-app-staging
+    tier: backend-staging
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: http

@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: todo-app
+      tier: backend
+      track: stable
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: todo-app
+        tier: backend
+        track: stable
+    spec:
+      containers:
+        - name: backend
+          image: "<IMAGE>"
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+            limits:
+              cpu: 100m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: default
+spec:
+  selector:
+    app: todo-app
+    tier: backend
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: http
