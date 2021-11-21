@@ -15,7 +15,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var serverAddr string = ":1234"
+var serverAddr string = ":8080"
 
 func main() {
 	logger := log.New(os.Stdout, "todo-backend # ", log.LstdFlags)
